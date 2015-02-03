@@ -1,0 +1,23 @@
+{
+  "name": "covFuzz",
+  "version": "0.0.1",
+  "description": "Coverage assisted fuzzing wrapper using ASanCoverage. ",
+  "main": "covFuzz.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": " "
+  },
+  "keywords": [
+    "fuzz",
+    "testing",
+    "coverage"
+  ],
+  "author": "Atte Kettunen",
+  "license": "MIT",
+  "dependencies": {
+    "surku": "^0.1.1"
+  }
+}
