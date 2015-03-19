@@ -42,6 +42,9 @@ if any files caused new coverage(were left in <outputDirectory>/samples). If new
 generatorFunction to those files, if not then generatorFunction is called to files from <inputDirectory>
 
 usage: node covFuzz.j-i <instance count> -d <sample dir> -c <config-file> -kill <binary-name as seen for pkill>
+
+
+
 Notes:
 
 0. When there is problems with this tool, ask in IRC! These instructions are far from complete. :D
@@ -51,9 +54,7 @@ Notes:
 2.If your target is a tool that exits after consuming the test case ALWAYS use exec-mode. It is faster and coverage output is more reliable.
 spawn-mode is designed for gui programs and it uses /proc/pid/stat to check if target program state!=Running and kills the program when state change is detected, depending on the target program, the program might be killed before execution is completed and some coverage data might be missed.
 
-3.exec/spawn command is always built <targetBin> <preArgs> <fileName> <postArgs>. pre/postArgs are given as array and joined with ' '.
-
-4.default config:(undefined values are set via cli and/or config-file) (Might be missing something.)
+3.default config:(undefined values are set via cli and/or config-file) (Might be missing something.)
 
 var config={
 	analyzeOnly:false, //Exit after analyzing input corpus. Can be used to minimize corpus with optimize setting.
@@ -71,11 +72,10 @@ var config={
 	optimize:false, //Optimize input corpus before fuzzing.
 	outputDirectory:undefined, //if set, files will be originally read from inputDirectory and all files with new coverage are copied to this directory.
 	tempDirectory:undefined, //<this>+'/'+<instance number> is used as temp folder for ASanCov outputs and <this>+'/samples' is used for generator output.
-	postArgs:[],
-	preArgs:[],
 	resultDirectory:undefined, //if crash is found, repro-file and asan-trace is copied to this folder.
-	type:'exec'//defines if exec- or spawn-mode is used. 
+	commandLine:undefined, //commandline that is used to spawn target process. example: /bin/target @@ . Note: @@ will be replaced with temp-file name, ## will be replaced with the instance number of current process. This can be used for example: google-chrome --user-data-dir=/run/shm/tmp/profs/##
 	
+
 	generatorFunction:function(sampleFiles,callback){
 		if(!this.surku){
 			var surkuConfig={
@@ -97,8 +97,8 @@ var config={
 
 }
 
-5. There is couple of example generatorFunctions in testCaseGeneratorFunctions.js
+4. There is couple of example generatorFunctions in testCaseGeneratorFunctions.js
 
-6. covFuzz can take use of the new ASanCoverage feature BitSet, but you have to build your target with new enough LLVM/clang. With bitset there is problem with programs using dlopen in the middle of the run, but covFuzz can handle it.
+5. covFuzz can take use of the new ASanCoverage feature BitSet, but you have to build your target with new enough LLVM/clang. With bitset there is problem with programs using dlopen in the middle of the run, but covFuzz can handle it.
 
 
