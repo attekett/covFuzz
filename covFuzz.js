@@ -18,8 +18,12 @@ var files=fs.readdirSync(config.inputDirectory).map(function(fileName){
 
 files=files.filter(function(file){if(file){return file}else{return false}})
 files.sort(function(a,b){
-	return fs.statSync(path.resolve(config.inputDirectory,b)).size-fs.statSync(path.resolve(config.inputDirectory,a)).size
+	if(!config.reverse)
+		return fs.statSync(path.resolve(config.inputDirectory,b)).size-fs.statSync(path.resolve(config.inputDirectory,a)).size
+	else
+		return fs.statSync(path.resolve(config.inputDirectory,a)).size-fs.statSync(path.resolve(config.inputDirectory,b)).size
 })
+
 
 console.dlog('Files:')
 console.dlog(files)
@@ -91,9 +95,11 @@ function saveNewSamples(files,newBlocks){
 }
 
 function unlinkFiles(files){
-	files.forEach(function(file){
-		fs.unlinkSync(file)
-	})
+	if(unlinking || config.optimize){
+		files.forEach(function(file){
+			fs.unlinkSync(file)
+		})
+	}
 }
 
 function onTargetExit(stderr,files,number,killed){
@@ -101,21 +107,27 @@ function onTargetExit(stderr,files,number,killed){
 		var fingerPrint=ASAN.asanFingerPrint(stderr)
 		if(fingerPrint !== null){
 			if(fingerPrint && fingerPrint!="stack-overflow"){	
-				if(!fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt'))){
-					console.log(stderr)	
-					console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))
-					fs.mkdirSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint))
-					files.forEach(function(file,index){	
-						fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+index+'.'+config.fileExtension),fs.readFileSync(file))
-						fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt'),stderr)
-					})
+				if(!fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt')) && !fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'))){
+					if(files.length!=1){
+						console.log(stderr)	
+						console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))				
+						fs.mkdirSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint))
+						files.forEach(function(file,index){	
+							fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+index+'.'+config.fileExtension),fs.readFileSync(file))
+							fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt'),stderr)
+						})
+					}else{
+						console.log(stderr)	
+						console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))
+						fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension),fs.readFileSync(files[0]))
+						fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'),stderr)
+					}
 				}
 				else{
 					console.log('Dupe: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))
 				}
 			}
-			if(unlinking)
-				unlinkFiles(files)
+			unlinkFiles(files)
 		}
 		else if(config.analyzeCoverage){
 			var coverageData=ASAN.getCoverageData(number)
@@ -125,10 +137,8 @@ function onTargetExit(stderr,files,number,killed){
 				saveNewSamples(files,newBlocks)
 			}
 			else{
-	            noBlocks++;		
-	         	if(unlinking || config.optimize){
-	            	unlinkFiles(files)
-				}
+				noBlocks++;		
+	         	unlinkFiles(files)	
 		    }
 		}
 	}

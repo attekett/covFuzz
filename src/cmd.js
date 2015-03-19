@@ -74,6 +74,7 @@ var cmd_config={
 	inputDirectory:(process.argv.indexOf('-d')+1 && process.argv[process.argv.indexOf('-d')+1]) || undefined,
 	outputDirectory:(process.argv.indexOf('-o')+1 && process.argv[process.argv.indexOf('-o')+1]) || undefined,
 	instanceCount:(process.argv.indexOf('-i')+1 && process.argv[process.argv.indexOf('-i')+1]) || undefined,
+	reverse:(process.argv.indexOf('-r')+1 && true) || undefined,
 	optimize:process.argv.indexOf('--optimize')+1 && true || undefined,
 	kill:(process.argv.indexOf('-kill')+1 && process.argv[process.argv.indexOf('-kill')+1]) || undefined,
 	analyzeOnly:process.argv.indexOf('-a')+1 && true || undefined,

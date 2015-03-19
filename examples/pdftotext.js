@@ -1,12 +1,10 @@
 
 module.exports={
-	type:'exec',
 	tempDirectory:'/run/shm/tmp/',
 	resultDirectory:process.env.HOME+'/results/',
 	fileExtension:'pdf',
 	target:'pdftotext',
-	targetBin:process.env.HOME+'/poppler-0.24.5/utils/.libs/lt-pdftotext',
-	postArgs:['/dev/null'],
+	commandLine:process.env.HOME+'/poppler-0.24.5/utils/.libs/lt-pdftotext @@ /dev/null',
 	maxBlockCount:1,
 	killTimeout:2000,
 }
