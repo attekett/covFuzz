@@ -11,6 +11,8 @@ var config={
 	bitsetMode:false,
 	disableLogging:false,
 	killSignal:'SIGTERM',
+	logging:process.env.COVFUZZ_DEBUG,
+	debugLevel:1,
 	fastForward:undefined,
 	fileExtension:undefined,
 	filesPerRound:100,

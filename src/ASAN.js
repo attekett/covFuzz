@@ -141,7 +141,7 @@ function isKeeper(coverageData){
 			console.log('Original bitset file length: '+currentCoverage.combined.length)
 			console.log('Current bitset file length: '+coverageData.combined.length)
 			console.log('Bailing out from bitset mode.')
-			console.log('Note: Alternative method uses offset file per library/binary and is a lot slower. Also all coverage data is reset.')
+			console.log('Note: Alternative method uses offset file per library/binary and is slower. Also all coverage data is reset.')
 			totalBlocks=0;
 			bitsetMode=false
 		}
@@ -156,6 +156,11 @@ function isKeeper(coverageData){
 				var len=coverageData[x].length
 				var i=0;
 				var result=[]
+				var bits=coverageData[x][0]
+				var inc=4
+				if(bits==0x64)
+					inc=8
+				i=8
 				while(i<len){
 					var offset=coverageData[x].readUInt32LE(i)
 					if(currentCoverage[x][offset]===undefined){
@@ -166,7 +171,8 @@ function isKeeper(coverageData){
 						keeper++;
 						currentCoverage[x][offset]++
 					}
-					i+=4
+					i+=inc
+					
 				}
 			}
 		}

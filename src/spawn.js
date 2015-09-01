@@ -1,6 +1,7 @@
 
 
 module.exports=function(config){
+	var path=require('path')
 	var events = require('events');
 	var statusEmitter = new events.EventEmitter();
 	statusEmitter.setMaxListeners(0)
@@ -38,6 +39,7 @@ module.exports=function(config){
 		if(config.ASAN_OPTIONS && config.analyzeCoverage){
 			environment.ASAN_OPTIONS=config.ASAN_OPTIONS+config.tempDirectory+'/'+number
 		}
+		file=[path.relative(process.cwd(),file[0])]
 		var commandLine=config.configureCommandline(file,number,environment)
 		var target=spawn(config.targetBin,commandLine,{env:environment})
 		var stderr=""

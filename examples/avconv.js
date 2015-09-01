@@ -1,13 +1,16 @@
 
+
 module.exports={
 	debug:false,
-	fileExtension:'opus',
+	fileExtension:'media',
 	killTimeout:3000,
 	maxBlockCount:1,
-	inputDirectory:process.env.HOME+'/samples/samples-svg/',
+	filesPerRound:200,
+	ASAN_OPTIONS:'detect_leaks=0,coverage=1,coverage_dir=',	
+	inputDirectory:process.env.HOME+'/samples/samples-media-cut/',
 	resultDirectory:process.env.HOME+'/results/',
-	target:'opusdec',
-	commandLine:process.env.HOME+'/point-n-click/packages/opus-tools/opusdec @@ /dev/null',
+	target:'avconv',
+	commandLine:process.env.HOME+'/Downloads/libav-0.8.17/avconv -i @@ -f null -',
 	tempDirectory:'/run/shm/tmp/'
 }
 
