@@ -71,6 +71,8 @@ var bitsetMode=true
 function getCoverageData(number){
 	var coverageData={}
 	var covFiles=fs.readdirSync(this.tempDirectory+'/'+number)
+	if(covFiles.length==0)
+		console.dlog('WARNING: Target did not produce any .sancov file.')
 	for(var x=0; x<covFiles.length; x++){
 		if(this.fileNameRegExp.test(covFiles[x])){
 			console.dlog('Regular sancov. '+covFiles[x])
