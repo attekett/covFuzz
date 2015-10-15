@@ -68,7 +68,6 @@ module.exports=function(config){
 		})
 
 		target.on('exit',function(code){
-			clearInterval(stateObserver)
 			clearTimeout(target.timeout)
 			statusEmitter.removeListener('kill', killObserver);
 			callback(stderr,file,workDir,killed)
@@ -77,8 +76,7 @@ module.exports=function(config){
 			console.dlog('[Single]Timeout kill.')
 			statusEmitter.emit('kill')
 			target.kill('SIGKILL')
-		},config.killTimeout)
-		processKill()	
+		},config.killTimeout)	
 	}
 	return spawnTarget
 }

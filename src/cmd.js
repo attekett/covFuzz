@@ -32,6 +32,7 @@ var config={
 if(process.argv.length<=2){
 	console.log('covFuzz v0.1 - Author: Atte Kettunen (@attekett)')
 	console.log('Usage: node covFuzz.js -c <path-to-configuration-file> [Flags]')
+	console.log('For more info about configuration files, check examples.')
 	console.log('Flags:')
 	console.log('  --debug 	-	Enable debug.')
 	console.log('  -d <path>	-	Input sample directory.')
@@ -48,10 +49,10 @@ function pargv(flag){
 }
 
 function getargv(flag){
-	return process.argv[pargv('-c')]
+	return process.argv[pargv(flag)]
 }
 
-if(pargv('-c')){
+if(!pargv('-c')){
 	console.log('No config-file');
 	process.exit(0)
 }

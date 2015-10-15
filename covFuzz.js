@@ -135,7 +135,7 @@ function removeTestCase(workDir,file){
 /*
 	send message to testcasegen that the file should be saved	
 */
-function saveTestCase(workDir,file){
+function saveTestCase(workDir,file,currentBlocks){
 	freeWorkDirs.push(workDir)
 	var newBlocks=instrumentation.getTotalBlocks()-currentBlocks
 	if(availableTestCases.length<config.maxTempTestCases){
@@ -191,7 +191,7 @@ function onTargetExit(stderr,file,workDir,killed){
 
 			if(instrumentation.isKeeper(coverageData)){
 				
-				saveTestCase(workDir,file)
+				saveTestCase(workDir,file,currentBlocks)
 		    }
 			else{
 				noBlocks++;	

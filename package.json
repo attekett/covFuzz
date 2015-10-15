@@ -1,6 +1,6 @@
 {
   "name": "covFuzz",
-  "version": "0.1",
+  "version": "0.1.0",
   "description": "Coverage assisted fuzzing wrapper using ASanCoverage. ",
   "main": "covFuzz.js",
   "scripts": {

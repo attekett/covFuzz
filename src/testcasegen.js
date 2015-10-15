@@ -75,7 +75,7 @@ function saveNewSamples(data){
 	var fileContent=fs.readFileSync(data.file)
 	var original=path.resolve(data.file)
 	var fileName=crypto.createHash('sha1').update(fileContent).digest('hex')
-	var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+'.'+config.fileExtension)
+	var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+path.extname(data.file))
 	fs.writeFileSync(fullName,fileContent)
 	samples.allSamples.push(fullName)
 	samples.topSamples.push({file:fullName,weight:200})
@@ -167,6 +167,12 @@ function newTestCase(fileName){
 	process.send({type:'newTestCase',data:{file:fileName}})
 }
 
-process.on('SIGINT',function(){
+process.on('disconnect',function(){
+	process.exit()
+})
+process.on('error',function(){
+	process.exit()
+})
+process.on('exit',function(){
 	process.exit()
 })
