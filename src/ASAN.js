@@ -1,4 +1,9 @@
 
+var fs=require('fs')
+/*
+	Parse crash fingerprint from ASAN-trace: <type>-<offset-frame0>-<offset-frame1>-<offset-frame2>
+	TODO: Add support of symbolized traces.
+*/
 function asanFingerPrint(stderr){
 	if(stderr && stderr.indexOf('ERROR: AddressSanitizer') !=-1){
 		asanTrace=stderr.replace('\n','').replace(/\s+/g,' ').split(' ')
@@ -23,8 +28,9 @@ function asanFingerPrint(stderr){
 			fingerPrint+="-"+frame.substr(frame.length-3,3)
 		}
 
-		if(fingerPrint=="")
+		if(fingerPrint==""){
 			return null
+		}
 		else{
 			return fingerPrint
 		}
@@ -34,6 +40,9 @@ function asanFingerPrint(stderr){
 	}
 }
 
+/*
+	Unpack packed sancov-files. Needed with chromium fuzzing.
+*/
 function unpackSancovPacked(file){
 	var cf=fs.readFileSync(file)
 	var x=0
@@ -68,9 +77,13 @@ var currentCoverage={}
 var totalBlocks=0;
 var banner=false
 var bitsetMode=true
-function getCoverageData(number){
+
+/*
+	Check the workdir for desired .sancov files and read the .sancov files for processing.
+*/
+function getCoverageData(workDir){
 	var coverageData={}
-	var covFiles=fs.readdirSync(this.tempDirectory+'/'+number)
+	var covFiles=fs.readdirSync(workDir)
 	for(var x=0; x<covFiles.length; x++){
 		if(this.fileNameRegExp.test(covFiles[x])){
 			console.dlog('Regular sancov. '+covFiles[x])
@@ -78,17 +91,17 @@ function getCoverageData(number){
 			if(coverageData[module]){
 					console.dlog('Found previous entry.')
 					console.dlog('Previous entry size: '+coverageData[module].length)
-					coverageData[module]=Buffer.concat([coverageData[module],fs.readFileSync(this.tempDirectory+'/'+number+'/'+covFiles[x])])
+					coverageData[module]=Buffer.concat([coverageData[module],fs.readFileSync(workDir+'/'+covFiles[x])])
 					console.dlog('New entry size: '+coverageData[module].length)
 					
 			}else{
-				coverageData[module]=fs.readFileSync(this.tempDirectory+'/'+number+'/'+covFiles[x])
+				coverageData[module]=fs.readFileSync(workDir+'/'+covFiles[x])
 			}
 		}else if(this.readPacked && covFiles[x].indexOf('.sancov.packed')!=-1){
 			console.dlog('Packed sancov!')
 			console.dlog('Disabling bitset-mode.')
 			bitsetMode=false
-			var unpackedSancov=unpackSancovPacked(this.tempDirectory+'/'+number+'/'+covFiles[x])
+			var unpackedSancov=unpackSancovPacked(workDir+'/'+covFiles[x])
 			console.dlog('Unpacked:')
 			console.dlog(unpackedSancov)
 			for(var y in unpackedSancov){
@@ -106,74 +119,98 @@ function getCoverageData(number){
 				}
 			}
 		}
+		fs.unlinkSync(workDir+'/'+covFiles[x])
 	}
+
 	return coverageData
 }
 
-function isKeeper(coverageData){
-	var keeper=0;	
-	if(bitsetMode && coverageData.combined){
-		if(!currentCoverage.combined){
+/*
+	Read coverage-data buffer and check if new coverage was found.
+	NOTE: Works only for regular .sancov files.
+*/
+function checkCoverageBuffer(inputBuffer,module){
+	var len=inputBuffer.length	
+	var i=8		
+	var offset=new Number()
+	var keeper=0
+	var bits=inputBuffer[0]
+	var inc=4
+	if(bits==0x64)
+		inc=8
+	while(i<len){
+		offset=inputBuffer.readUInt32LE(i)
+		if(currentCoverage[module][offset]===undefined){
+			currentCoverage[module][offset]=1
+			keeper++;
+			totalBlocks++
+		}else if(currentCoverage[module][offset]<maxBlockCount){
+			keeper++;
+			currentCoverage[module][offset]++
+		}
+		i+=inc	
+	}
+	return keeper
+}
+
+/*
+	Read coverage-data buffer and check if new coverage was found.
+	NOTE: Used for ASAN_OPTIONS=coverage_bitset=1.
+*/
+function checkBitsetBuffer(coverageData){
+	var keeper=0;
+	if(!currentCoverage.combined){
 			console.log('Initialising new bitset coverage buffer.')
 			currentCoverage.combined=new Buffer(coverageData.combined.length)
 			currentCoverage.combined.fill(0)
-		}
-		if(currentCoverage.combined.length==coverageData.combined.length){
-			var covLength=currentCoverage.combined.length
-			var newCovLength=coverageData.combined.length
-			for(var x=0; x<covLength;x++){
-				if(x>newCovLength)
-					break;
-				if(coverageData.combined[x]!=0x30){
-					if(currentCoverage.combined[x]==0){
-						keeper++;
-						totalBlocks++
-						currentCoverage.combined[x]=1
-					}else if(currentCoverage.combined[x]<maxBlockCount){
-						keeper++;
-						currentCoverage.combined[x]++
-					}
+	}
+	if(currentCoverage.combined.length==coverageData.combined.length){
+		var covLength=currentCoverage.combined.length
+		var newCovLength=coverageData.combined.length
+		for(var x=0; x<covLength;x++){
+			if(x>newCovLength)
+				break;
+			if(coverageData.combined[x]!=0x30){
+				if(currentCoverage.combined[x]==0){
+					keeper++;
+					totalBlocks++
+					currentCoverage.combined[x]=1
+				}else if(currentCoverage.combined[x]<maxBlockCount){
+					keeper++;
+					currentCoverage.combined[x]++
 				}
 			}
 		}
-		else{
-			console.log('Initial bitset file length differs from current.(Binary loads libraries middle of the run.)')
-			console.log('Original bitset file length: '+currentCoverage.combined.length)
-			console.log('Current bitset file length: '+coverageData.combined.length)
-			console.log('Bailing out from bitset mode.')
-			console.log('Note: Alternative method uses offset file per library/binary and is slower. Also all coverage data is reset.')
-			totalBlocks=0;
-			bitsetMode=false
-		}
 	}
 	else{
-		for(var x in coverageData){
-			if(x!='combined'){
-				if(!currentCoverage[x]){
-					console.log('Collecting coverage for: '+x)
-					currentCoverage[x]=[]
+		console.log('Initial bitset file length differs from current.(Binary loads libraries middle of the run.)')
+		console.log('Original bitset file length: '+currentCoverage.combined.length)
+		console.log('Current bitset file length: '+coverageData.combined.length)
+		console.log('Bailing out from bitset mode.')
+		console.log('Note: Alternative method uses offset file per library/binary and is slower. All coverage data is reset.')
+		totalBlocks=0;
+		bitsetMode=false
+	}
+	return keeper
+}
+
+
+/*
+	Select correct coverage-data analyser.
+*/
+function isKeeper(coverageData){
+	var keeper=0;	
+	if(bitsetMode && coverageData.combined){
+		keeper+=checkBitsetBuffer(coverageData)
+	}
+	else{
+		for(var moduleName in coverageData){
+			if(moduleName!='combined'){
+				if(!currentCoverage[moduleName]){
+					console.log('Collecting coverage for: '+moduleName)
+					currentCoverage[moduleName]=[]
 				}
-				var len=coverageData[x].length
-				var i=0;
-				var result=[]
-				var bits=coverageData[x][0]
-				var inc=4
-				if(bits==0x64)
-					inc=8
-				i=8
-				while(i<len){
-					var offset=coverageData[x].readUInt32LE(i)
-					if(currentCoverage[x][offset]===undefined){
-						keeper++;
-						totalBlocks++
-						currentCoverage[x][offset]=1
-					}else if(currentCoverage[x][offset]<maxBlockCount){
-						keeper++;
-						currentCoverage[x][offset]++
-					}
-					i+=inc
-					
-				}
+				keeper+=checkCoverageBuffer(coverageData[moduleName],moduleName)
 			}
 		}
 	}
@@ -181,7 +218,7 @@ function isKeeper(coverageData){
 }
 
 module.exports={
-	asanFingerPrint:asanFingerPrint,
+	fingerPrint:asanFingerPrint,
 	getCoverageData:getCoverageData,
 	isKeeper:isKeeper,
 	getTotalBlocks:function(){
@@ -189,5 +226,8 @@ module.exports={
 	},
 	setMaxBlockCount:function(max){
 		maxBlockCount=max
+	},
+	init:function(config){
+		config.instrumentationHook='ERROR: AddressSanitizer'
 	}
 }

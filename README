@@ -38,19 +38,3 @@ If file doesn't reveal any new coverage it is removed. If file causes new covera
 original file is left in <outputDirectory>/samples. When covFuzz finishes with files from <outputDirectory>/samples it checks
 if any files caused new coverage(were left in <outputDirectory>/samples). If new coverage was found covFuzz executes
 generatorFunction to those files, if not then generatorFunction is called to files from <inputDirectory>
-
-
-
-usage: node covFuzz.js -c ./config.js -d <input_dir> [-o output_dir] -i <parallel_instances_of_target> [--optimize] [-a]
-
-commandline:
-
-'--debug'			: enable debug-prints
-'-d <input_dir>'	: where samples are located  
-'-o <output_dir'	: if given, "useful" files are stored here and after initial check fuzzing continues from this dir.
-'-i <int>'			: count of how many parallel instances of the target program is launched
-'-r'				: read input-files in reverse order. By default going from smallest to largest. Useful when optimizing samples.
-'--optimize'		: optimize samples. removes all input-files that do not give new coverage
-'-kill <string'		: specify the process-names to be killed on timeout
-'-a'				: analyze only. covFuzz will exit after going through files from input_dir
-'-max <int>'		: covFuzz will exit when specified number of test cases have been executed 
