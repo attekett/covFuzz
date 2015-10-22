@@ -59,8 +59,9 @@ function updateTestCase(message){
 		removeTestCase(message.data)
 	else if(message.action=='save')
 		saveNewSamples(message.data)
-	if(fileCount==config.maxTestCaseCount)
-		process.exit()
+	if(fileCount==config.maxTestCaseCount){
+		process.send({type:'maxTestCaseCount'})
+	}
 	if(!message.data.noNew)
 		generateNewTestCase()
 	else
@@ -164,7 +165,7 @@ function surkuFunction(sampleFile,callback){
 }
 
 function newTestCase(fileName){
-	process.send({type:'newTestCase',data:{file:fileName}})
+	process.send({type:'newTestCase',data:{file:fileName,corpusSize:samples.allSamples.length}})
 }
 
 process.on('disconnect',function(){
@@ -174,5 +175,8 @@ process.on('error',function(){
 	process.exit()
 })
 process.on('exit',function(){
+	process.exit()
+})
+process.on('SIGINT',function(){
 	process.exit()
 })

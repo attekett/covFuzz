@@ -12,7 +12,7 @@ if(instrumentation.init)
 console.dlog('Instrumentation loaded.')
 instrumentation.getCoverageData=instrumentation.getCoverageData.bind(config)
 
-console.fileLog('Configuration:\n'+JSON.stringify(config, null, ' '),'INFO')
+console.fileLog(JSON.stringify({type:'Configuration',data:config}, null, ' '))
 
 var freeWorkDirs=[]
 for(var x=0; x<config.instanceCount; x++){
@@ -25,13 +25,27 @@ for(var x=0; x<config.instanceCount; x++){
 
 var testcasegen=fork(__dirname+'/src/testcasegen.js')
 
+
+testcasegen.on('disconnect',function(){
+	testcasegen.sendMessage=function(){}
+})
+
 testcasegen.sendMessage=function(type,data){
 	this.send({type:type,data:data})
 }
 
+
+
 var messageTypes={
 	'newTestCase':newTestCase,
-	'initReady':initReady
+	'initReady':initReady,
+	'maxTestCaseCount':maxTestCaseCount
+}
+
+function maxTestCaseCount(){
+	console.log('['+(new Date().getTime())+'] maxTestCaseCount reached: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
+	console.fileLog(JSON.stringify({type:'maxTestCaseCount',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),speed:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+	process.exit()
 }
 
 function messageHandler(message){
@@ -45,7 +59,7 @@ function messageHandler(message){
 
 testcasegen.on('message',messageHandler)
 
-
+var crashes={}
 var availableTestCases=[]
 var initialTestCases=0
 function initReady(data){
@@ -57,10 +71,12 @@ function initReady(data){
 		spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
 	}
 }
-
+var corpusSize=0
 function newTestCase(data){
 	if(data.file)
 		availableTestCases.push(data.file)
+	if(data.corpusSize)
+		corpusSize=data.corpusSize
 	if(freeWorkDirs.length>0){
 		spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
 	}
@@ -152,6 +168,10 @@ function saveTestCase(workDir,file,currentBlocks){
 */
 function writeResult(fingerPrint,file,stderr){
 	var extension=path.extname(file)
+	if(!crashes[fingerPrint])
+		crashes[fingerPrint]={count:1,fingerPrint:fingerPrint,first_seen:(new Date().getTime())}
+	else
+		crashes[fingerPrint].count++
 	if(!fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt')) && !fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'))){
 		console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension))
 		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension),fs.readFileSync(file))
@@ -174,12 +194,11 @@ function onTargetExit(stderr,file,workDir,killed){
 	totalFiles++
 	if(initialTestCases==totalFiles){
 		console.log('Initial run finished. Starting fuzzing.')
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
+		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
 		instrumentation.setMaxBlockCount(1)
 	}
 	if(totalFiles%100==0){
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
-		console.fileLog('Status:\n'+JSON.stringify({scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),speed:speed(totalFiles)}, null, ' '),'INFO')		
+		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
 	}
 	if(!killed){
 		var fingerPrint=instrumentation.fingerPrint(stderr)
@@ -217,3 +236,7 @@ testcasegen.sendMessage('init',config)
 if(config.analyzeOnly){
 	config.maxTempTestCases=0
 }
+
+setInterval(function(){
+	console.fileLog(JSON.stringify({type:'status',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),speed:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+},60*1000)

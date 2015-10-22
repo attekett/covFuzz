@@ -57,7 +57,17 @@ module.exports=function(config){
 			}
 		},config.sleepTimeout/2)*/
 		target.stderr.on('data',function(data){
-		//	console.log(data.toString())
+			//console.log(data.toString())
+			if(stderr!="" || data.toString().indexOf(config.instrumentationHook)!=-1){
+				var newData=data.toString()
+				stderr+=newData
+				if(newData.indexOf('=='+target.pid+'==ABORTING')!=-1){
+					target.kill('SIGKILL')
+				}
+			}
+		})
+		target.stdout.on('data',function(data){
+			//console.log(data.toString())
 			if(stderr!="" || data.toString().indexOf(config.instrumentationHook)!=-1){
 				var newData=data.toString()
 				stderr+=newData

@@ -18,7 +18,7 @@ var config={
 	instrumentationPath:'./src/ASAN.js',//Location for the instrumentation file to be used.
 	killSignal:'SIGTERM',//Signal that is used with spawn.kill on timeout
 	killTimeout:10000, //Timeout which after the target is killed.
-	logging:true, //Logging to file. 
+	logging:false, //Logging to file. 
 	maxBlockCount:1, //How many files per block are collected from the original sample collection. Doesn't effect during fuzzing phase.
 	maxTempTestCases:20, //How many fuzzed test cases we are trying to keep on queue at all times.
 	maxTestCaseCount:undefined, //Use this if you want to run specific number of test cases. Note that initial samples count to this limit.
@@ -40,6 +40,7 @@ if(process.argv.length<=2){
 	console.log('  -i <int>	-	Amount of parallel instances.')
 	console.log('  -a		-	Only analyse the input samples and exit.')
 	console.log('  -max <int> 	-	Specify amount of files to run and exit.')
+	console.log('  --logging 	-	log to file.')
 	process.exit()
 }
 
@@ -83,6 +84,7 @@ var cmd_config={
 	instanceCount:(pargv('-i') && getargv('-i')) || undefined,
 	analyzeOnly:pargv('-a') && true || undefined,
 	maxTestCaseCount:(pargv('-max') && getargv('-max')) || undefined,
+	logging:(pargv('--logging') && true) || false
 }
 
 for(var key in cmd_config){
@@ -128,26 +130,37 @@ if(config.debug)
 else
 	console.dlog=function(){}
 
+var logFileName=path.resolve(config.resultDirectory,config.configName+'-'+process.pid+'-covFuzz.log')
+
 if(config.logging){
-	var logFile=fs.createWriteStream(path.resolve(config.resultDirectory,config.configName+'-covFuzz.log'))
-	console.fileLog=function(msg,type){
-		if(type)
-			logFile.write('['+new Date()+']['+type+'] '+msg)
-		else
-			logFile.write('['+new Date()+'] '+msg)
+	if(fs.existsSync(logFileName)){
+		fs.unlinkSync(logFileName)
+	}
+	var logFile=fs.createWriteStream(logFileName)
+	logFile.write('[\n')
+	console.fileLog=function(msg){
+			if(!logFile._writableState.ended)
+				logFile.write('\n'+msg+',')
 	}
 }
 else
 	console.fileLog=function(){}
 
 
-process.on('SIGINT',function(){
-	logFile.end()
+process.on('exit',function(){
+	if(!logFile._writableState.ended){
+		logFile.end('{}]\n')
+	}
+	process.exit()
 })
 
-process.on('exit',function(){
-	logFile.end()
+process.on('SIGINT',function(){
+	if(!logFile._writableState.ended){
+		logFile.end('{}]\n')
+	}
+	process.exit()
 })
+
 
 if(!config.hasOwnProperty('configureCommandline')){
 	config.configureCommandline=function(file,workDir,environment){
