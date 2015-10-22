@@ -143,6 +143,7 @@ var surku=new S(surkuConfig)
 function surkuFunction(sampleFile,callback){
 	if(sampleFile){
 		var prefix=new Date().getTime()
+		fileCount++
 		var fileName=config.tempDirectory+'/samples/'+prefix+fileCount+path.extname(sampleFile)
 		var fileContent=fs.readFileSync(sampleFile)
 		var chunkSize=Math.ceil(fileContent.length/100)
