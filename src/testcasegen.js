@@ -59,10 +59,6 @@ function updateTestCase(message){
 		removeTestCase(message.data)
 	else if(message.action=='save')
 		saveNewSamples(message.data)
-	if(fileCount==config.maxTestCaseCount){
-		console.log('Ping')
-		process.send({type:'maxTestCaseCount'})
-	}
 	if(!message.data.noNew)
 		generateNewTestCase()
 	else
@@ -147,7 +143,6 @@ var surku=new S(surkuConfig)
 function surkuFunction(sampleFile,callback){
 	if(sampleFile){
 		var prefix=new Date().getTime()
-		fileCount++
 		var fileName=config.tempDirectory+'/samples/'+prefix+fileCount+path.extname(sampleFile)
 		var fileContent=fs.readFileSync(sampleFile)
 		var chunkSize=Math.ceil(fileContent.length/100)
