@@ -8,13 +8,19 @@ module.exports=function(config){
 	statusEmitter.setMaxListeners(0)
 	
 	var spawn=require('child_process').spawn
-	
+	var outOfFilesCounter=0
 	function spawnTarget(file,workDir,callback){
 		if(file===undefined){
+			outOfFilesCounter++
+			if(outOfFilesCounter>1000){
+				console.log('Something is wrong...')
+				process.exit()
+			}
 			console.log('Out of samples...')
 			callback(null,file,workDir,true)
 			return null
 		}
+		outOfFilesCounter=0
 		var environment=Object.create(process.env)	
 		if(config.env && config.analyzeCoverage){
 			for(var option in config.env){			
