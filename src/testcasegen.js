@@ -60,6 +60,7 @@ function updateTestCase(message){
 	else if(message.action=='save')
 		saveNewSamples(message.data)
 	if(fileCount==config.maxTestCaseCount){
+		console.log('Ping')
 		process.send({type:'maxTestCaseCount'})
 	}
 	if(!message.data.noNew)

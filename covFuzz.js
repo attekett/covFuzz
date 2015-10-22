@@ -38,8 +38,7 @@ testcasegen.sendMessage=function(type,data){
 
 var messageTypes={
 	'newTestCase':newTestCase,
-	'initReady':initReady,
-	'maxTestCaseCount':maxTestCaseCount
+	'initReady':initReady
 }
 
 function maxTestCaseCount(){
@@ -76,7 +75,7 @@ function newTestCase(data){
 	if(data.file)
 		availableTestCases.push(data.file)
 	if(data.corpusSize)
-		corpusSize=data.corpusSize
+		corpusSize=data.corpusSize+1
 	if(freeWorkDirs.length>0){
 		spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
 	}
@@ -213,7 +212,6 @@ function onTargetExit(stderr,file,workDir,killed){
 			var currentBlocks=instrumentation.getTotalBlocks();
 
 			if(instrumentation.isKeeper(coverageData)){
-				
 				saveTestCase(workDir,file,currentBlocks)
 		    }
 			else{
@@ -226,6 +224,10 @@ function onTargetExit(stderr,file,workDir,killed){
 		if(freeWorkDirs.indexOf(workDir)==-1)
 			freeWorkDirs.push(workDir)
 		removeTestCase(workDir,file)
+	}
+
+	if(totalFiles==config.maxTestCaseCount){
+		maxTestCaseCount()
 	}
 }
 

@@ -148,14 +148,14 @@ else
 
 
 process.on('exit',function(){
-	if(!logFile._writableState.ended){
+	if(config.logging && !logFile._writableState.ended){
 		logFile.end('{}]\n')
 	}
 	process.exit()
 })
 
 process.on('SIGINT',function(){
-	if(!logFile._writableState.ended){
+	if(config.logging && !logFile._writableState.ended){
 		logFile.end('{}]\n')
 	}
 	process.exit()
