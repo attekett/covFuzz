@@ -125,7 +125,8 @@ function speed(totalFiles){
 	send message to testcasegen that the file should be removed
 */
 function removeTestCase(workDir,file){
-	freeWorkDirs.push(workDir)
+	if(freeWorkDirs.indexOf(workDir)==-1)
+		freeWorkDirs.push(workDir)
 	if(availableTestCases.length<config.maxTempTestCases){
 		testcasegen.sendMessage('updateTestCase',{action:'remove',data:{file:file}})
 	}else{
@@ -136,7 +137,8 @@ function removeTestCase(workDir,file){
 	send message to testcasegen that the file should be saved	
 */
 function saveTestCase(workDir,file,currentBlocks){
-	freeWorkDirs.push(workDir)
+	if(freeWorkDirs.indexOf(workDir)==-1)
+		freeWorkDirs.push(workDir)
 	var newBlocks=instrumentation.getTotalBlocks()-currentBlocks
 	if(availableTestCases.length<config.maxTempTestCases){
 		testcasegen.sendMessage('updateTestCase',{action:'save',data:{file:file,newBlocks:newBlocks,totalBlocks:instrumentation.getTotalBlocks()}})        		
@@ -149,13 +151,14 @@ function saveTestCase(workDir,file,currentBlocks){
 	Save crash reproducing file and the stderr output.
 */
 function writeResult(fingerPrint,file,stderr){
+	var extension=path.extname(file)
 	if(!fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt')) && !fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'))){
-		console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))
-		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension),fs.readFileSync(file))
+		console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension))
+		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension),fs.readFileSync(file))
 		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'),stderr)
 	}
 	else{
-		console.log('Dupe: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.'+config.fileExtension))
+		console.log('Dupe: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension))
 	}
 }
 
@@ -164,7 +167,8 @@ function writeResult(fingerPrint,file,stderr){
 */
 function onTargetExit(stderr,file,workDir,killed){
 	if(file===undefined){
-		freeWorkDirs.push(workDir)
+		if(freeWorkDirs.indexOf(workDir)==-1)
+			freeWorkDirs.push(workDir)
 		return null
 	}
 	totalFiles++
@@ -200,7 +204,8 @@ function onTargetExit(stderr,file,workDir,killed){
 		}
 	}
 	else{
-		freeWorkDirs.push(workDir)
+		if(freeWorkDirs.indexOf(workDir)==-1)
+			freeWorkDirs.push(workDir)
 		removeTestCase(workDir,file)
 	}
 }
