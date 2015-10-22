@@ -42,8 +42,8 @@ var messageTypes={
 }
 
 function maxTestCaseCount(){
-	console.log('['+(new Date().getTime())+'] maxTestCaseCount reached: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
-	console.fileLog(JSON.stringify({type:'maxTestCaseCount',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),speed:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+	console.log('['+(new Date().getTime())+'] maxTestCaseCount reached: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
+	console.fileLog(JSON.stringify({type:'maxTestCaseCount',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),testspersecond:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
 	process.exit()
 }
 
@@ -193,11 +193,11 @@ function onTargetExit(stderr,file,workDir,killed){
 	totalFiles++
 	if(initialTestCases==totalFiles){
 		console.log('Initial run finished. Starting fuzzing.')
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
+		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
 		instrumentation.setMaxBlockCount(1)
 	}
 	if(totalFiles%100==0){
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' Speed: '+speed(totalFiles))	
+		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
 	}
 	if(!killed){
 		var fingerPrint=instrumentation.fingerPrint(stderr)
@@ -240,5 +240,5 @@ if(config.analyzeOnly){
 }
 
 setInterval(function(){
-	console.fileLog(JSON.stringify({type:'status',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),speed:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+	console.fileLog(JSON.stringify({type:'status',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),testspersecond:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
 },60*1000)
