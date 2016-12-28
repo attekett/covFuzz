@@ -4,8 +4,9 @@ var fs=require('fs')
 var path=require('path')
 var fork=require('child_process').fork
 
-var config=require('./src/cmd.js')
+var config=require(path.resolve(__dirname,'./src/cmd.js'))
 var instrumentation=require(config.instrumentationPath)
+var testcasegen=fork(config.testCaseGen)
 
 if(instrumentation.init)
 	instrumentation.init(config)
@@ -16,15 +17,12 @@ console.fileLog(JSON.stringify({type:'Configuration',data:config}, null, ' '))
 
 var freeWorkDirs=[]
 for(var x=0; x<config.instanceCount; x++){
-	if(!fs.existsSync(config.tempDirectory+'/'+x)){
-		fs.mkdirSync(config.tempDirectory+'/'+x);
+	var workDir=path.resolve(config.tempDirectory,""+x)
+	if(!fs.existsSync(workDir)){
+		fs.mkdirSync(workDir);
 	}
-	freeWorkDirs.push(config.tempDirectory+'/'+x)
+	freeWorkDirs.push(workDir)
 }
-
-
-var testcasegen=fork(__dirname+'/src/testcasegen.js')
-
 
 testcasegen.on('disconnect',function(){
 	testcasegen.sendMessage=function(){}
@@ -42,8 +40,8 @@ var messageTypes={
 }
 
 function maxTestCaseCount(){
-	console.log('['+(new Date().getTime())+'] maxTestCaseCount reached: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
-	console.fileLog(JSON.stringify({type:'maxTestCaseCount',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),testspersecond:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+    consoleLogstatus('maxTestCaseCount');
+    fileLogStatus('maxTestCaseCount');
 	process.exit()
 }
 
@@ -58,40 +56,105 @@ function messageHandler(message){
 
 testcasegen.on('message',messageHandler)
 
-var crashes={}
-var availableTestCases=[]
-var initialTestCases=0
-function initReady(data){
-	availableTestCases=[]
-	for(var x=0; x<data.files.length;x++)
-		availableTestCases[x]=data.files[x]
-	initialTestCases=availableTestCases.length
-	while(freeWorkDirs.length>0){
-		spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
-	}
+function fileLogStatus(type){
+    var curCorpus=stats.corpusSize
+    if(corpusSize<stats.trimCorpusSize)
+        curCorpus=stats.trimCorpusSize
+    console.fileLog(JSON.stringify(
+       {
+         type:type,
+         data:{
+            start_time:start_time,
+            cur_time:(new Date().getTime()),
+            scanned_files:stats.totalFiles,
+            blocks:instrumentation.getTotalBlocks(),
+            time:timeSpent(),
+            testspersecond:speed(stats.totalFiles),
+            corpussize:curCorpus,
+            crashes:stats.crashes}
+         },
+       null,' '
+    ))
 }
-var corpusSize=0
+
+function consoleLogstatus(type){
+    console.log('['+(new Date().getTime())+'] '+type+':'
+       +' Files scanned: '+stats.totalFiles
+       +' Corpussize:'+stats.corpusSize
+       +' TotalBlocks: '+instrumentation.getTotalBlocks()
+       +' Time: '+timeSpent()
+       +' testspersecond: '+speed(stats.totalFiles))
+}
+
+var stats={
+    trimCount:0,
+    crashes:{},
+    initialTestCases:0,
+    corpusSize:0,
+    trimCorpusSize:0,
+    totalFiles:0,
+    noBlocks:0
+}
+
+
+var availableTestCases=[];
+var trim=false
+
+function initReady(data){
+    console.log('INIT ready')
+    stats.trimCorpusSize=corpusSize
+    instrumentation.clearCoverage()
+    availableTestCases=[]
+    for(var x=0; x<data.files.length;x++)
+        availableTestCases[x]=data.files[x]
+    if(availableTestCases.length<config.instanceCount){
+        console.log('Not enough input-files: You have to have more input-files than parallel instances.')
+        process.exit(0)
+    }
+    stats.initialTestCases=stats.totalFiles+availableTestCases.length
+    while(freeWorkDirs.length>0){
+        spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
+    }
+}
+
 function newTestCase(data){
 	if(data.file)
 		availableTestCases.push(data.file)
 	if(data.corpusSize)
-		corpusSize=data.corpusSize+1
-	if(freeWorkDirs.length>0){
-		spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
-	}
+        stats.corpusSize=data.corpusSize+1
+    if(freeWorkDirs.length>0){
+        var nextTestCase=getNextTestCase()
+        if(nextTestCase){
+            spawnTarget(nextTestCase,freeWorkDirs.pop(),onTargetExit)
+        }
+        else if(trim && freeWorkDirs.length==config.instanceCount){
+            trim=false
+            if(config.trim){
+                console.log('Initialize size/blocks trim.')
+                testcasegen.sendMessage('trim',config)
+            }
+            else{
+                console.log('Initialize size trim.')
+                testcasegen.sendMessage('init',config)
+            }
+        }
+        else{
+            console.log('Out of files.')
+        }
+    }
 }
 
 function getNextTestCase(){
-	var nextTestCase=availableTestCases.shift()
-	if(availableTestCases.length<20 && !config.analyzeOnly){	
-		testcasegen.sendMessage('samplesLow')
-	}
-	else if(availableTestCases.length==0){
-		process.exit()
-	}
-	return nextTestCase
+    var nextTestCase=availableTestCases.shift()
+    return nextTestCase
 }
 
+function updateCrashes(fingerPrint){
+    if(!stats.crashes[fingerPrint])
+       stats.crashes[fingerPrint]={count:1,fingerPrint:fingerPrint,first_seen:(new Date().getTime())}
+    else
+       stats.crashes[fingerPrint].count++
+}
 
 /*
 	Couple of random helpers
@@ -104,12 +167,7 @@ function ra(array){
 	return array[Math.floor(Math.random()*array.length)]
 }
 
-var fileList=[];
-var totalFiles=0;
-var noBlocks=0;
-var returns=1
-
-instrumentation.setMaxBlockCount(config.maxBlockCount)
+instrumentation.setMaxBlockCount(50)
 
 var start_time=new Date().getTime()
 
@@ -140,95 +198,132 @@ function speed(totalFiles){
 	send message to testcasegen that the file should be removed
 */
 function removeTestCase(workDir,file){
-	if(freeWorkDirs.indexOf(workDir)==-1)
-		freeWorkDirs.push(workDir)
-	if(availableTestCases.length<config.maxTempTestCases){
-		testcasegen.sendMessage('updateTestCase',{action:'remove',data:{file:file}})
-	}else{
-		testcasegen.sendMessage('updateTestCase',{action:'remove',data:{file:file,noNew:true}})
-	}
+    if(freeWorkDirs.indexOf(workDir)==-1)
+       freeWorkDirs.push(workDir)
+
+    var message={
+         action:'remove',
+         data:{
+          file:file
+         }
+       }
+    if(availableTestCases.length>config.maxTempTestCases){
+       message.noNew=true
+    }
+    testcasegen.sendMessage('updateTestCase',message)
 }
 /*
 	send message to testcasegen that the file should be saved	
 */
 function saveTestCase(workDir,file,currentBlocks){
-	if(freeWorkDirs.indexOf(workDir)==-1)
-		freeWorkDirs.push(workDir)
-	var newBlocks=instrumentation.getTotalBlocks()-currentBlocks
-	if(availableTestCases.length<config.maxTempTestCases){
-		testcasegen.sendMessage('updateTestCase',{action:'save',data:{file:file,newBlocks:newBlocks,totalBlocks:instrumentation.getTotalBlocks()}})        		
-	}else{
-		testcasegen.sendMessage('updateTestCase',{action:'save',data:{file:file,newBlocks:newBlocks,totalBlocks:instrumentation.getTotalBlocks(),noNew:true}})        		
-	}
+    if(freeWorkDirs.indexOf(workDir)==-1)
+       freeWorkDirs.push(workDir)
+    var newBlocks=instrumentation.getTotalBlocks()-currentBlocks
+
+    var message={
+            action:'save',
+            data:{
+                file:file,
+                newBlocks:newBlocks,
+                exec_time:exec_time,
+                testCaseBlocks:testCaseBlocks,
+                totalBlocks:instrumentation.getTotalBlocks()
+            }
+        }
+
+    if(availableTestCases.length>config.maxTempTestCases && trim){
+       message.noNew=true
+    }
+    testcasegen.sendMessage('updateTestCase',message)
 }
 
 /*
-	Save crash reproducing file and the stderr output.
+    Save crash reproducing file and the stderr output.
 */
 function writeResult(fingerPrint,file,stderr){
-	var extension=path.extname(file)
-	if(!crashes[fingerPrint])
-		crashes[fingerPrint]={count:1,fingerPrint:fingerPrint,first_seen:(new Date().getTime())}
-	else
-		crashes[fingerPrint].count++
-	if(!fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint,config.target+'-'+fingerPrint+'.txt')) && !fs.existsSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'))){
-		console.log('Repro-file saved to: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension))
-		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension),fs.readFileSync(file))
-		fs.writeFileSync(path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+'.txt'),stderr)
-	}
-	else{
-		console.log('Dupe: '+path.resolve(config.resultDirectory,config.target+'-'+fingerPrint+extension))
-	}
+    var extension=path.extname(file)
+    updateCrashes(fingerPrint)
+
+    var reproPath=path.resolve(
+         config.resultDirectory,
+         config.target+'-'+fingerPrint+extension
+       )
+    var txtPath=path.resolve(
+         config.resultDirectory,
+         config.target+'-'+fingerPrint+'.txt'
+       )
+
+    if(!fs.existsSync(txtPath) && !fs.existsSync(reproPath)){
+       console.log('Repro-file saved to: '+reproPath)
+       fs.writeFileSync(reproPath,fs.readFileSync(file))
+       fs.writeFileSync(txtPath,stderr)
+    }
+    else{
+       console.log('Dupe: '+reproPath)
+    }
 }
 
 /*
-	Handler for target software exit. Checks if instrumentation caught something new and if we got new coverage.
+    Handler for target software exit. Checks if instrumentation caught something new and if we got new coverage.
 */
 function onTargetExit(stderr,file,workDir,killed){
-	if(file===undefined){
-		if(freeWorkDirs.indexOf(workDir)==-1)
-			freeWorkDirs.push(workDir)
-		return null
-	}
-	totalFiles++
-	if(initialTestCases==totalFiles){
-		console.log('Initial run finished. Starting fuzzing.')
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
-		instrumentation.setMaxBlockCount(1)
-	}
-	if(totalFiles%100==0){
-		console.log('['+(new Date().getTime())+'] Status: Files scanned: '+totalFiles+' Corpussize:'+corpusSize+' TotalBlocks: '+instrumentation.getTotalBlocks()+' Time: '+timeSpent()+' testspersecond: '+speed(totalFiles))	
-	}
-	if(!killed){
-		var fingerPrint=instrumentation.fingerPrint(stderr)
-		if(fingerPrint !== null){
-			if(fingerPrint && fingerPrint!="stack-overflow"){	
-				writeResult(fingerPrint,file,stderr)
-			}
-			removeTestCase(workDir,file)
-		}
-		else if(config.analyzeCoverage){
-			var coverageData=instrumentation.getCoverageData(workDir)
-			var currentBlocks=instrumentation.getTotalBlocks();
+    if(file===undefined){
+       if(freeWorkDirs.indexOf(workDir)==-1)
+         freeWorkDirs.push(workDir)
+       return null
+    }
+    stats.totalFiles++
+    if(stats.initialTestCases==stats.totalFiles){
+       console.log('Initial run finished. Starting fuzzing.')
+       consoleLogstatus('Status')
+       instrumentation.setMaxBlockCount(1)
+       if(stats.trimCount==0){
+            stats.trimCount++
+            trim=true
+        }
+    }
+    if(stats.totalFiles%100==0){
+       consoleLogstatus('Status')
+    }
+    if(stats.totalFiles%(config.trimFrequency+stats.totalFiles)==0){
+        console.log('TRIM')
+        instrumentation.setMaxBlockCount(config.maxBlockCount)
+        trim=true
+    }
 
-			if(instrumentation.isKeeper(coverageData)){
-				saveTestCase(workDir,file,currentBlocks)
-		    }
-			else{
-				noBlocks++;	
-				removeTestCase(workDir,file)
-			}
-		}
-	}
-	else{
-		if(freeWorkDirs.indexOf(workDir)==-1)
-			freeWorkDirs.push(workDir)
-		removeTestCase(workDir,file)
-	}
+    if(!killed){
+        var fingerPrint=instrumentation.fingerPrint(stdout,stderr)
+        //null, if no error and we want to analyze the coverage
+        //false|0|undefined, if there was an error we don't want to save
+        //fingerPrint set, if there was something we want to save
+        if(fingerPrint !== null){
+            if(fingerPrint){
+                writeResult(fingerPrint,file,stderr)
+            }
+            removeTestCase(workDir,file)
+        }
+        else if(config.analyzeCoverage){
+            var coverageData=instrumentation.getCoverageData(workDir)
+            var currentBlocks=instrumentation.getTotalBlocks();
+            var analysis=instrumentation.isKeeper(coverageData)
+            if(analysis.keeper){
+                saveTestCase(workDir,file,currentBlocks,analysis.blocks,exec_time)
+            }
+            else{
+                stats.noBlocks++;
+                removeTestCase(workDir,file)
+            }
+        }
+    }
+    else{
+       if(freeWorkDirs.indexOf(workDir)==-1)
+         freeWorkDirs.push(workDir)
+       removeTestCase(workDir,file)
+    }
 
-	if(totalFiles==config.maxTestCaseCount){
-		maxTestCaseCount()
-	}
+    if(stats.totalFiles==config.maxTestCaseCount){
+       maxTestCaseCount()
+    }
 }
 
 var spawnTarget=(require('./src/spawn.js'))(config)
@@ -240,5 +335,6 @@ if(config.analyzeOnly){
 }
 
 setInterval(function(){
-	console.fileLog(JSON.stringify({type:'status',data:{start_time:start_time,cur_time:(new Date().getTime()),scanned_files:totalFiles,blocks:instrumentation.getTotalBlocks(),time:timeSpent(),testspersecond:speed(totalFiles),corpussize:corpusSize,crashes:crashes}}, null, ' '))		
+    fileLogStatus('status')
 },60*1000)
+
