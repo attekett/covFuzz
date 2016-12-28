@@ -10,6 +10,7 @@
     "type": "git",
     "url": " "
   },
+  "jshintConfig":".jshintrc",
   "keywords": [
     "fuzz",
     "testing",

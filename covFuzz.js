@@ -1,65 +1,65 @@
 #!/usr/bin/env node
 
-var fs=require('fs')
-var path=require('path')
-var fork=require('child_process').fork
+var fs=require('fs');
+var path=require('path');
+var fork=require('child_process').fork;
 
-var config=require(path.resolve(__dirname,'./src/cmd.js'))
-var instrumentation=require(config.instrumentationPath)
-var testcasegen=fork(config.testCaseGen)
+var config=require(path.resolve(__dirname,'./src/cmd.js'));
+var instrumentation=require(config.instrumentationPath);
+var testcasegen=fork(config.testCaseGen);
 
 if(instrumentation.init)
-	instrumentation.init(config)
-console.dlog('Instrumentation loaded.')
-instrumentation.getCoverageData=instrumentation.getCoverageData.bind(config)
+    instrumentation.init(config);
+console.dlog('Instrumentation loaded.');
+instrumentation.getCoverageData=instrumentation.getCoverageData.bind(config);
 
-console.fileLog(JSON.stringify({type:'Configuration',data:config}, null, ' '))
+console.fileLog(JSON.stringify({type:'Configuration',data:config}, null, ' '));
 
-var freeWorkDirs=[]
+var freeWorkDirs=[];
 for(var x=0; x<config.instanceCount; x++){
-	var workDir=path.resolve(config.tempDirectory,""+x)
-	if(!fs.existsSync(workDir)){
-		fs.mkdirSync(workDir);
-	}
-	freeWorkDirs.push(workDir)
+    var workDir=path.resolve(config.tempDirectory,""+x);
+    if(!fs.existsSync(workDir)){
+       fs.mkdirSync(workDir);
+    }
+    freeWorkDirs.push(workDir);
 }
 
 testcasegen.on('disconnect',function(){
-	testcasegen.sendMessage=function(){}
-})
+    testcasegen.sendMessage=function(){};
+});
 
 testcasegen.sendMessage=function(type,data){
-	this.send({type:type,data:data})
-}
-
+    this.send({type:type,data:data});
+};
 
 
 var messageTypes={
-	'newTestCase':newTestCase,
-	'initReady':initReady
-}
+    'newTestCase':newTestCase,
+    'initReady':initReady
+};
+
 
 function maxTestCaseCount(){
     consoleLogstatus('maxTestCaseCount');
     fileLogStatus('maxTestCaseCount');
-	process.exit()
+    process.exit();
 }
 
 function messageHandler(message){
-	if(messageTypes.hasOwnProperty(message.type)){
-		messageTypes[message.type](message.data)
-	}
-	else{
-		console.log('No message type: '+message.type)
-	}
+    if(messageTypes.hasOwnProperty(message.type)){
+       messageTypes[message.type](message.data);
+    }
+    else{
+       console.log('No message type: '+message.type);
+    }
 }
 
-testcasegen.on('message',messageHandler)
+testcasegen.on('message',messageHandler);
 
 function fileLogStatus(type){
-    var curCorpus=stats.corpusSize
-    if(corpusSize<stats.trimCorpusSize)
-        curCorpus=stats.trimCorpusSize
+    var curCorpus=stats.corpusSize;
+    if(curCorpus<stats.trimCorpusSize)
+        curCorpus=stats.trimCorpusSize;
     console.fileLog(JSON.stringify(
        {
          type:type,
@@ -74,16 +74,16 @@ function fileLogStatus(type){
             crashes:stats.crashes}
          },
        null,' '
-    ))
+    ));
 }
 
 function consoleLogstatus(type){
-    console.log('['+(new Date().getTime())+'] '+type+':'
-       +' Files scanned: '+stats.totalFiles
-       +' Corpussize:'+stats.corpusSize
-       +' TotalBlocks: '+instrumentation.getTotalBlocks()
-       +' Time: '+timeSpent()
-       +' testspersecond: '+speed(stats.totalFiles))
+    console.log('['+(new Date().getTime())+'] '+type+':'+
+        ' Files scanned: '+stats.totalFiles+
+        ' Corpussize:'+stats.corpusSize+
+        ' TotalBlocks: '+instrumentation.getTotalBlocks()+
+        ' Time: '+timeSpent()+
+        ' testspersecond: '+speed(stats.totalFiles));
 }
 
 var stats={
@@ -94,131 +94,121 @@ var stats={
     trimCorpusSize:0,
     totalFiles:0,
     noBlocks:0
-}
+};
 
 
 var availableTestCases=[];
-var trim=false
+var trim=false;
 
 function initReady(data){
-    console.log('INIT ready')
-    stats.trimCorpusSize=corpusSize
-    instrumentation.clearCoverage()
-    availableTestCases=[]
+    console.log('INIT ready');
+    stats.trimCorpusSize=stats.corpusSize;
+    instrumentation.clearCoverage();
+    availableTestCases=[];
     for(var x=0; x<data.files.length;x++)
-        availableTestCases[x]=data.files[x]
+        availableTestCases[x]=data.files[x];
     if(availableTestCases.length<config.instanceCount){
-        console.log('Not enough input-files: You have to have more input-files than parallel instances.')
-        process.exit(0)
+        console.log('Not enough input-files: You have to have more input-files than parallel instances.');
+        process.exit(0);
     }
-    stats.initialTestCases=stats.totalFiles+availableTestCases.length
+    stats.initialTestCases=stats.totalFiles+availableTestCases.length;
     while(freeWorkDirs.length>0){
-        spawnTarget(getNextTestCase(),freeWorkDirs.pop(),onTargetExit)
+        var testCase=getNextTestCase();
+        spawnTarget(testCase,freeWorkDirs.pop(),onTargetExit);
     }
 }
 
 function newTestCase(data){
-	if(data.file)
-		availableTestCases.push(data.file)
-	if(data.corpusSize)
-        stats.corpusSize=data.corpusSize+1
+    if(data.file)
+       availableTestCases.push(data.file);
+    if(data.corpusSize)
+        stats.corpusSize=data.corpusSize+1;
     if(freeWorkDirs.length>0){
-        var nextTestCase=getNextTestCase()
+        var nextTestCase=getNextTestCase();
         if(nextTestCase){
-            spawnTarget(nextTestCase,freeWorkDirs.pop(),onTargetExit)
+            spawnTarget(nextTestCase,freeWorkDirs.pop(),onTargetExit);
         }
         else if(trim && freeWorkDirs.length==config.instanceCount){
-            trim=false
+            trim=false;
             if(config.trim){
-                console.log('Initialize size/blocks trim.')
-                testcasegen.sendMessage('trim',config)
+                console.log('Initialize size/blocks trim.');
+                testcasegen.sendMessage('trim',config);
             }
             else{
-                console.log('Initialize size trim.')
-                testcasegen.sendMessage('init',config)
+                console.log('Initialize size trim.');
+                testcasegen.sendMessage('init',config);
             }
         }
         else{
-            console.log('Out of files.')
+            console.log('Out of files.');
         }
     }
 }
 
 function getNextTestCase(){
-    var nextTestCase=availableTestCases.shift()
-    return nextTestCase
+    var nextTestCase=availableTestCases.shift();
+    return nextTestCase;
 }
 
 function updateCrashes(fingerPrint){
     if(!stats.crashes[fingerPrint])
-       stats.crashes[fingerPrint]={count:1,fingerPrint:fingerPrint,first_seen:(new Date().getTime())}
+       stats.crashes[fingerPrint]={count:1,fingerPrint:fingerPrint,first_seen:(new Date().getTime())};
     else
-       stats.crashes[fingerPrint].count++
+       stats.crashes[fingerPrint].count++;
 }
 
-/*
-	Couple of random helpers
-*/
-function rint(max){
-	return Math.floor(Math.random()*max)
-}
+instrumentation.setMaxBlockCount(50);
 
-function ra(array){
-	return array[Math.floor(Math.random()*array.length)]
-}
-
-instrumentation.setMaxBlockCount(50)
-
-var start_time=new Date().getTime()
+var start_time=new Date().getTime();
 
 
 /*
-	Used time calc
+    Used time calc
 */
 function timeSpent(){
-	var end_time = new Date().getTime();
-	var elapsed_ms = end_time - start_time;
-	var seconds = Math.floor(elapsed_ms / 1000);
-	var minutes = Math.floor(seconds / 60);
-	var hours = Math.floor(minutes / 60);
+    var end_time = new Date().getTime();
+    var elapsed_ms = end_time - start_time;
+    var seconds = Math.floor(elapsed_ms / 1000);
+    var minutes = Math.floor(seconds / 60);
+    var hours = Math.floor(minutes / 60);
 
-	return hours+':'+(minutes%60)+':'+(seconds%60)
+    return hours+':'+(minutes%60)+':'+(seconds%60);
 }
 /*
-	Average speed tests/s
+    Average speed tests/s
 */
 function speed(totalFiles){
-	var cur_time=new Date().getTime()
-	var seconds=(cur_time-start_time)/1000
-	var speed=Math.round(totalFiles/seconds)
-	return speed+' tests/s'
+    var cur_time=new Date().getTime();
+    var seconds=(cur_time-start_time)/1000;
+    var speed=Math.round(totalFiles/seconds);
+    return speed+' tests/s';
 }
 
 /*
-	send message to testcasegen that the file should be removed
+    send message to testcasegen that the file should be removed
 */
 function removeTestCase(workDir,file){
     if(freeWorkDirs.indexOf(workDir)==-1)
-       freeWorkDirs.push(workDir)
+       freeWorkDirs.push(workDir);
 
     var message={
          action:'remove',
          data:{
           file:file
          }
-       }
-    if(availableTestCases.length>config.maxTempTestCases){
-       message.noNew=true
+       };
+    if(availableTestCases.length>config.maxTempTestCases || trim){
+       message.data.noNew=true;
     }
-    testcasegen.sendMessage('updateTestCase',message)
+    testcasegen.sendMessage('updateTestCase',message);
 }
 /*
-	send message to testcasegen that the file should be saved	
+    send message to testcasegen that the file should be saved
 */
-function saveTestCase(workDir,file,currentBlocks){
+function saveTestCase(workDir,file,currentBlocks,testCaseBlocks,exec_time){
     if(freeWorkDirs.indexOf(workDir)==-1)
-       freeWorkDirs.push(workDir)
-    var newBlocks=instrumentation.getTotalBlocks()-currentBlocks
+       freeWorkDirs.push(workDir);
+    var newBlocks=instrumentation.getTotalBlocks()-currentBlocks;
 
     var message={
             action:'save',
@@ -229,112 +219,113 @@ function saveTestCase(workDir,file,currentBlocks){
                 testCaseBlocks:testCaseBlocks,
                 totalBlocks:instrumentation.getTotalBlocks()
             }
-        }
+        };
 
-    if(availableTestCases.length>config.maxTempTestCases && trim){
-       message.noNew=true
+    if(availableTestCases.length>config.maxTempTestCases || trim){
+       message.data.noNew=true;
     }
-    testcasegen.sendMessage('updateTestCase',message)
+    testcasegen.sendMessage('updateTestCase',message);
 }
 
 /*
     Save crash reproducing file and the stderr output.
 */
 function writeResult(fingerPrint,file,stderr){
-    var extension=path.extname(file)
-    updateCrashes(fingerPrint)
+    var extension=path.extname(file);
+    updateCrashes(fingerPrint);
 
     var reproPath=path.resolve(
          config.resultDirectory,
          config.target+'-'+fingerPrint+extension
-       )
+       );
     var txtPath=path.resolve(
          config.resultDirectory,
          config.target+'-'+fingerPrint+'.txt'
-       )
+       );
 
     if(!fs.existsSync(txtPath) && !fs.existsSync(reproPath)){
-       console.log('Repro-file saved to: '+reproPath)
-       fs.writeFileSync(reproPath,fs.readFileSync(file))
-       fs.writeFileSync(txtPath,stderr)
+       console.log('Repro-file saved to: '+reproPath);
+       fs.writeFileSync(reproPath,fs.readFileSync(file));
+       fs.writeFileSync(txtPath,stderr);
     }
     else{
-       console.log('Dupe: '+reproPath)
+       console.log('Dupe: '+reproPath);
     }
 }
 
 /*
     Handler for target software exit. Checks if instrumentation caught something new and if we got new coverage.
 */
-function onTargetExit(stderr,file,workDir,killed){
+function onTargetExit(stdout,stderr,file,workDir,killed,exit_code,exec_time){
     if(file===undefined){
        if(freeWorkDirs.indexOf(workDir)==-1)
-         freeWorkDirs.push(workDir)
-       return null
+            freeWorkDirs.push(workDir);
+       return null;
     }
-    stats.totalFiles++
+    stats.totalFiles++;
     if(stats.initialTestCases==stats.totalFiles){
-       console.log('Initial run finished. Starting fuzzing.')
-       consoleLogstatus('Status')
-       instrumentation.setMaxBlockCount(1)
-       if(stats.trimCount==0){
-            stats.trimCount++
-            trim=true
+       console.log('Initial run finished. Starting fuzzing.');
+       consoleLogstatus('Status');
+       instrumentation.setMaxBlockCount(1);
+       if(stats.trimCount===0){
+            stats.trimCount++;
+            trim=true;
         }
     }
-    if(stats.totalFiles%100==0){
-       consoleLogstatus('Status')
+    if(stats.totalFiles%100===0){
+       consoleLogstatus('Status');
     }
-    if(stats.totalFiles%(config.trimFrequency+stats.totalFiles)==0){
-        console.log('TRIM')
-        instrumentation.setMaxBlockCount(config.maxBlockCount)
-        trim=true
+    if(stats.totalFiles%(config.trimFrequency+stats.totalFiles)===0){
+        console.log('TRIM');
+        instrumentation.setMaxBlockCount(config.maxBlockCount);
+        trim=true;
     }
 
     if(!killed){
-        var fingerPrint=instrumentation.fingerPrint(stdout,stderr)
+        var fingerPrint=instrumentation.fingerPrint(stdout,stderr);
         //null, if no error and we want to analyze the coverage
         //false|0|undefined, if there was an error we don't want to save
         //fingerPrint set, if there was something we want to save
         if(fingerPrint !== null){
             if(fingerPrint){
-                writeResult(fingerPrint,file,stderr)
+                writeResult(fingerPrint,file,stderr);
             }
-            removeTestCase(workDir,file)
+            removeTestCase(workDir,file);
         }
         else if(config.analyzeCoverage){
-            var coverageData=instrumentation.getCoverageData(workDir)
+            var coverageData=instrumentation.getCoverageData(workDir);
             var currentBlocks=instrumentation.getTotalBlocks();
-            var analysis=instrumentation.isKeeper(coverageData)
+            var analysis=instrumentation.isKeeper(coverageData);
             if(analysis.keeper){
-                saveTestCase(workDir,file,currentBlocks,analysis.blocks,exec_time)
+                saveTestCase(workDir,file,currentBlocks,analysis.blocks,exec_time);
             }
             else{
                 stats.noBlocks++;
-                removeTestCase(workDir,file)
+                removeTestCase(workDir,file);
             }
         }
     }
     else{
+       instrumentation.clearWorkDir(workDir);
        if(freeWorkDirs.indexOf(workDir)==-1)
-         freeWorkDirs.push(workDir)
-       removeTestCase(workDir,file)
+            freeWorkDirs.push(workDir);
+       removeTestCase(workDir,file);
     }
 
     if(stats.totalFiles==config.maxTestCaseCount){
-       maxTestCaseCount()
+       maxTestCaseCount();
     }
 }
 
-var spawnTarget=(require('./src/spawn.js'))(config)
+var spawnTarget=(require('./src/spawn.js'))(config);
 
-testcasegen.sendMessage('init',config)
+testcasegen.sendMessage('init',config);
 
 if(config.analyzeOnly){
-	config.maxTempTestCases=0
+    config.maxTempTestCases=0;
 }
 
 setInterval(function(){
-    fileLogStatus('status')
-},60*1000)
+    fileLogStatus('status');
+},60*1000);
 
