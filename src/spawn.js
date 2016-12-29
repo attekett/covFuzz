@@ -79,13 +79,14 @@ module.exports=function(config){
 			}
 		});
 		target.on('exit',function(code){
+			console.dlog('['+target.pid+']Exit.');
 			clearTimeout(target.timeout);
 			statusEmitter.removeListener('kill', killObserver);
 			var exec_time=(new Date().getTime())-start_time;
 			callback(stdout,stderr,file,workDir,killed,code,exec_time);
 		});
 		target.timeout=setTimeout(function(){
-			console.log('[Single]Timeout kill.');
+			console.dlog('['+target.pid+']Timeout kill.');
 			statusEmitter.emit('kill');
 			target.kill(config.killSignal);
 		},config.killTimeout);

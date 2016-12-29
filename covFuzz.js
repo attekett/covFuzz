@@ -200,6 +200,7 @@ function removeTestCase(workDir,file){
     if(availableTestCases.length>config.maxTempTestCases || trim){
        message.data.noNew=true;
     }
+    console.dlog('updateTestCase: '+JSON.stringify(message));
     testcasegen.sendMessage('updateTestCase',message);
 }
 /*
@@ -224,6 +225,7 @@ function saveTestCase(workDir,file,currentBlocks,testCaseBlocks,exec_time){
     if(availableTestCases.length>config.maxTempTestCases || trim){
        message.data.noNew=true;
     }
+    console.dlog('updateTestCase: '+JSON.stringify(message));
     testcasegen.sendMessage('updateTestCase',message);
 }
 
@@ -257,6 +259,7 @@ function writeResult(fingerPrint,file,stderr){
     Handler for target software exit. Checks if instrumentation caught something new and if we got new coverage.
 */
 function onTargetExit(stdout,stderr,file,workDir,killed,exit_code,exec_time){
+    console.dlog('onTargetExit '+JSON.stringify(arguments));
     if(file===undefined){
        if(freeWorkDirs.indexOf(workDir)==-1)
             freeWorkDirs.push(workDir);

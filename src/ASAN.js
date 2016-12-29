@@ -106,6 +106,7 @@ function getCoverageData(workDir){
 
 			}else{
 				coverageData[module]=fs.readFileSync(workDir+'/'+covFiles[x]);
+				console.dlog('Size: '+coverageData[module].length)
 			}
 		}else if(this.readPacked && covFiles[x].indexOf('.sancov.packed')!=-1){
 			console.dlog('Packed sancov!');
