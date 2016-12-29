@@ -19,13 +19,19 @@ var freeWorkDirs=[];
 for(var x=0; x<config.instanceCount; x++){
     var workDir=path.resolve(config.tempDirectory,""+x);
     if(!fs.existsSync(workDir)){
-       fs.mkdirSync(workDir);
+        fs.mkdirSync(workDir);
+    }
+    else{
+        instrumentation.clearWorkDir(workDir);
     }
     freeWorkDirs.push(workDir);
 }
 
 testcasegen.on('disconnect',function(){
     testcasegen.sendMessage=function(){};
+    console.log('Test case generator exited.');
+    console.log('Aborting...');
+    process.exit();
 });
 
 testcasegen.sendMessage=function(type,data){
@@ -130,14 +136,7 @@ function newTestCase(data){
         }
         else if(trim && freeWorkDirs.length==config.instanceCount){
             trim=false;
-            if(config.trim){
-                console.log('Initialize size/blocks trim.');
-                testcasegen.sendMessage('trim',config);
-            }
-            else{
-                console.log('Initialize size trim.');
-                testcasegen.sendMessage('init',config);
-            }
+            testcasegen.sendMessage('trim',config);
         }
         else{
             console.log('Out of files.');
@@ -235,23 +234,27 @@ function saveTestCase(workDir,file,currentBlocks,testCaseBlocks,exec_time){
 function writeResult(fingerPrint,file,stderr){
     var extension=path.extname(file);
     updateCrashes(fingerPrint);
-
+    if(!fs.existsSync(config.resultDirectory)){
+        console.log("Warning: Results directory doesn't exits.");
+        console.log('Trying to create.');
+        fs.mkdirSync(config.resultDirectory);
+    }
     var reproPath=path.resolve(
-         config.resultDirectory,
-         config.target+'-'+fingerPrint+extension
+        config.resultDirectory,
+        config.target+'-'+fingerPrint+extension
        );
     var txtPath=path.resolve(
-         config.resultDirectory,
-         config.target+'-'+fingerPrint+'.txt'
+        config.resultDirectory,
+        config.target+'-'+fingerPrint+'.txt'
        );
 
     if(!fs.existsSync(txtPath) && !fs.existsSync(reproPath)){
-       console.log('Repro-file saved to: '+reproPath);
-       fs.writeFileSync(reproPath,fs.readFileSync(file));
-       fs.writeFileSync(txtPath,stderr);
+        fs.writeFileSync(reproPath,fs.readFileSync(file));
+        fs.writeFileSync(txtPath,stderr);
+        console.log('Repro-file saved to: '+reproPath);
     }
     else{
-       console.log('Dupe: '+reproPath);
+        console.log('Dupe: '+reproPath);
     }
 }
 

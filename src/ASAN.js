@@ -269,10 +269,13 @@ module.exports={
 	init:function(config){
 		config.instrumentationHook='ERROR: AddressSanitizer';
 	},
-	cleraWorkDir:function(workDir){
-		var files=fs.readdirSync(workDir);
-		files.forEach(function(file){
-			fs.unlinkSync(path.join(workDir,file));
-		});
+	clearWorkDir:function(workDir){
+		if(workDir){
+			var files=fs.readdirSync(workDir);
+			files.forEach(function(file){
+				if(file)
+					fs.unlinkSync(path.join(workDir,file));
+			});
+		}
 	}
 };
