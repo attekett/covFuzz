@@ -7,34 +7,41 @@ var fs=require('fs');
 var radamsa;
 
 function radamsaGenerator(conf){
+    var self=this;
     this.config=conf;
     this.extraArgs=[];
     if(this.config.radamsaArguments)
         this.extraArgs=this.config.radamsaArguments;
     this.samples=[];
     this.updateSamples=function(){
-        this.samples=this.getSamples();
+        this.samples=radamsa.getSamples();
     };
     this.startRadamsa=function(){
-        var radamsa=this.radamsa;
-        radamsa = spawn(this.config.radamsaPath,
-            ['-n',this.config.filesPerRound]
-            .concat(this.extraArgs)
-            .concat(['-o',':'+(this.config.port+1)])
-            .concat(this.samples));
+        
+    //    console.log(this.config)
+        self.radamsa = spawn(self.config.radamsaPath,
+            ['-n',self.config.filesPerRound]
+            .concat(self.extraArgs)
+            .concat(['-o',':'+(self.config.port+1)])
+            .concat(self.samples));
 
-        radamsa.stderr.on('data',function(data){
+        self.radamsa.stderr.on('data',function(data){
             console.log('Radamsa error:'+data.toString());
+            if(data.toString().indexOf("Couldn't bind to local port")!=-1){
+                console.log('Port '+(self.config.port+1)+' is already in use.');
+                console.log('Check if radamsa is already running.');
+            }
         });
 
-        radamsa.stdout.on('data',function(data){
+        self.radamsa.stdout.on('data',function(data){
             console.log(data.toString());
         });
 
-        radamsa.on('exit',function(){
-            this.updateSamples();
-            this.startRadamsa();
+        self.radamsa.on('exit',function(){
+            self.updateSamples();
+            self.startRadamsa();
         });
+
     };
     this.getTestCase=function(callback){
         var tempDirectory=this.config.tempDirectory;
@@ -55,15 +62,20 @@ function radamsaGenerator(conf){
                 data=Buffer.concat([data,d]);
         });
         client.on('close', function(){
-            clearTimeout(timeout);
-            var prefix=new Date().getTime();
-            var fileName=tempDirectory+'/samples/'+prefix+'.'+extension;
-            fs.writeFile(fileName,data,function(){
-                callback({type:"file",data:fileName});
-            });
+
+            if(data){
+                clearTimeout(timeout);
+                var prefix=new Date().getTime()+Math.random().toString().split('.')[1];
+                var fileName=tempDirectory+'/samples/'+prefix+'.'+extension;
+                fs.writeFile(fileName,data,function(){
+                    callback({type:"file",data:fileName});
+                });
+            }
+            else{
+                callback();
+            }
         });
-        client.on('error', function(e) {
-            console.log('socket error: '+e);
+        client.on('error', function() {
             this.destroy();
         });
     };
@@ -71,10 +83,12 @@ function radamsaGenerator(conf){
 
 
 function init(conf){
+    console.log('Radamsa init.');
     radamsa=new radamsaGenerator(conf);
 }
 
 function generateTestCase(getSamples,callback){
+    //console.log('radamsa')
     if(!radamsa)
         console.log('No Radamsa!!!');
     else{
@@ -86,6 +100,7 @@ function generateTestCase(getSamples,callback){
         radamsa.getTestCase(callback);
     }
 }
+
 
 module.exports={
     init,

@@ -16,11 +16,11 @@ function init(config){
 }
 
 function generateTestCase(getSample,callback){
-
+        //console.log('surku')
         var prefix=new Date().getTime()+Math.random().toString().split('.')[1];
         var sampleFile=getSample(1)[0];
         if(sampleFile){
-            var fileName=surkuConfig.tempDirectory+'/samples/'+prefix+path.extname(sampleFile);
+            var fileName=surkuConfig.tempDirectory+'/samples/'+prefix;
             var fileContent=fs.readFileSync(sampleFile);
             var chunkSize=Math.ceil(fileContent.length/100);
             if(chunkSize>3000){
@@ -31,7 +31,10 @@ function generateTestCase(getSample,callback){
             else{
                 surku.config.chunkSize=chunkSize;
             }
-            fs.writeFile(fileName,surku.generateTestCase(fileContent),function(){
+            var testCase=surku.generateTestCase(fileContent);
+            fs.writeFile(fileName,testCase,function(){
+                //console.log(fileName)
+                //console.log("New length: "+testCase.length+ " Original length: "+fileContent.length)
                 callback({type:"file",data:fileName});
             });
         }
