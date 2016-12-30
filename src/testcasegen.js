@@ -91,6 +91,30 @@ function init(conf){
     process.send({type:'initReady',data:{files:allSamples}});
 }
 
+function filterSamples(samples){
+  var mode=rint(3);
+
+  if(mode===0){
+    console.log('Block mode.');
+    samples.allSamples.sort(function(a,b){
+        return a.testCaseBlocks-b.testCaseBlocks;
+    });
+  }
+  else if(mode===1){
+    console.log('Exec time mode.');
+    samples.allSamples.sort(function(a,b){
+        return a.exec_time-b.exec_time;
+    });
+  }
+  else{
+    console.log('Combined mode.');
+    samples.allSamples.sort(function(a,b){
+        return ((a.exec_time)/a.testCaseBlocks-(b.exec_time)/b.testCaseBlocks);
+    });
+  }
+}
+
+
 function trim(){
     console.log('TRIMMING');
     if(config.filterInputFolder===true){
@@ -98,9 +122,7 @@ function trim(){
        config.deleteFiles=true;
     }
 
-    samples.allSamples.sort(function(a,b){
-       return ((a.exec_time)/a.testCaseBlocks-(b.exec_time)/b.testCaseBlocks);
-    });
+    filterSamples(samples);
 
     var allSamples=[];
     for(var x=0; x<samples.allSamples.length; x++){
@@ -112,7 +134,7 @@ function trim(){
        topSamples:[]
     };
 
-    process.send({type:'initReady',data:{files:allSamples}});
+    process.send({type:'initReady',data:{trim:true, files:allSamples}});
 }
 
 
