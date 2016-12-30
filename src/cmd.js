@@ -24,8 +24,9 @@ var config={
 	collectHangs:false,
 	filesPerRound:200,
 	port:1337,
-	trimFrequency: 2000,
+	trimFrequency: 10000,
 	extension:'radamsa',
+	radamsaPath:'radamsa',
 	maxBlockCount:1, //How many files per block are collected from the original sample collection. Doesn't effect during fuzzing phase.
 	maxTempTestCases:20, //How many fuzzed test cases we are trying to keep on queue at all times.
 	maxTestCaseCount:undefined, //Use this if you want to run specific number of test cases. Note that initial samples count to this limit.
@@ -34,6 +35,10 @@ var config={
 	reverse:false, //Normal mode sorts files from smallest to largest, setting this reverses the order.
 	//sleepTimeout:100,
 	testCaseGen:path.resolve(__dirname,'./testcasegen.js'),
+    testCaseGenerators:[
+	    __dirname+'/../testcasegenerators/surku.js',
+	    __dirname+'/../testcasegenerators/radamsa.js'
+    ],
 	tempDirectory:undefined, //Directory where temps are written. I recommend using a directory that is located on a ramdisk.
 	trim:false
 };
@@ -44,9 +49,9 @@ if(process.argv.length<=2){
 	console.log('For more info about configuration files, check examples.');
 	console.log('Flags:');
 	console.log('  --debug 	-	Enable debug.');
-	console.log('  -d <path>	-	Input sample directory.');
+	console.log('  -i <path>	-	Input sample directory.');
 	console.log('  -o <path>	-	Output directory for samples.');
-	console.log('  -i <int>	-	Amount of parallel instances.');
+	console.log('  -p <int>	-	Amount of parallel instances.');
 	console.log('  -a		-	Only analyse the input samples and exit.');
 	console.log('  -max <int> 	-	Specify amount of files to run and exit.');
 	console.log('  --logging 	-	log to file.');
@@ -89,9 +94,9 @@ if(user_config !== undefined){
 var cmd_config={
 	debug:pargv('--debug') && true || undefined,
 	filterInputFolder:pargv('--filter-input') && true || false,
-	inputDirectory:(pargv('-d') && getargv('-d')) || undefined,
+	inputDirectory:(pargv('-i') && getargv('-i')) || undefined,
 	outputDirectory:(pargv('-o') && getargv('-o')) || undefined,
-	instanceCount:(pargv('-i') && getargv('-i')) || undefined,
+	instanceCount:(pargv('-p') && getargv('-p')) || undefined,
 	analyzeOnly:pargv('-a') && true || undefined,
 	maxTestCaseCount:(pargv('-max') && getargv('-max')) || undefined,
 	logging:(pargv('--logging') && true) || false
