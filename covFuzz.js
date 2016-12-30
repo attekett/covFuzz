@@ -99,15 +99,18 @@ var stats={
     corpusSize:0,
     trimCorpusSize:0,
     totalFiles:0,
-    noBlocks:0
+    noBlocks:0,
+    lastTrim:0
 };
 
-
+var maxTempTestCases=0;
 var availableTestCases=[];
 var trim=false;
+var initialization=true;
 
 function initReady(data){
     console.log('INIT ready');
+    initialization=true;    
     stats.trimCorpusSize=stats.corpusSize;
     instrumentation.clearCoverage();
     availableTestCases=[];
@@ -118,6 +121,10 @@ function initReady(data){
         process.exit(0);
     }
     stats.initialTestCases=stats.totalFiles+availableTestCases.length;
+    if(data.trim){
+        stats.lastTrim=stats.totalFiles;
+        maxTempTestCases=config.maxTempTestCases;
+    }
     while(freeWorkDirs.length>0){
         var testCase=getNextTestCase();
         spawnTarget(testCase,freeWorkDirs.pop(),onTargetExit);
@@ -135,11 +142,9 @@ function newTestCase(data){
             spawnTarget(nextTestCase,freeWorkDirs.pop(),onTargetExit);
         }
         else if(trim && freeWorkDirs.length==config.instanceCount){
+            console.log('trim');
             trim=false;
             testcasegen.sendMessage('trim',config);
-        }
-        else{
-            console.log('Out of files.');
         }
     }
 }
@@ -196,7 +201,7 @@ function removeTestCase(workDir,file){
           file:file
          }
        };
-    if(availableTestCases.length>config.maxTempTestCases || trim){
+    if(availableTestCases.length>=maxTempTestCases){
        message.data.noNew=true;
     }
     console.dlog('updateTestCase: '+JSON.stringify(message));
@@ -221,7 +226,7 @@ function saveTestCase(workDir,file,currentBlocks,testCaseBlocks,exec_time){
             }
         };
 
-    if(availableTestCases.length>config.maxTempTestCases || trim){
+    if(availableTestCases.length>=maxTempTestCases){
        message.data.noNew=true;
     }
     console.dlog('updateTestCase: '+JSON.stringify(message));
@@ -270,7 +275,7 @@ function onTargetExit(stdout,stderr,file,workDir,killed,exit_code,exec_time){
     }
     stats.totalFiles++;
     if(stats.initialTestCases==stats.totalFiles){
-       console.log('Initial run finished. Starting fuzzing.');
+       console.log('Analysis run completed.');
        consoleLogstatus('Status');
        instrumentation.setMaxBlockCount(1);
        if(stats.trimCount===0){
@@ -281,9 +286,10 @@ function onTargetExit(stdout,stderr,file,workDir,killed,exit_code,exec_time){
     if(stats.totalFiles%100===0){
        consoleLogstatus('Status');
     }
-    if(stats.totalFiles%(config.trimFrequency+stats.totalFiles)===0){
-        console.log('TRIM');
+    if(stats.lastTrim!==0 && stats.totalFiles%(config.trimFrequency+stats.lastTrim)===0){
+        console.log('Starting trim.');
         instrumentation.setMaxBlockCount(config.maxBlockCount);
+        maxTempTestCases=0;
         trim=true;
     }
 
@@ -328,7 +334,7 @@ var spawnTarget=(require('./src/spawn.js'))(config);
 testcasegen.sendMessage('init',config);
 
 if(config.analyzeOnly){
-    config.maxTempTestCases=0;
+    maxTempTestCases=0;
 }
 
 setInterval(function(){
