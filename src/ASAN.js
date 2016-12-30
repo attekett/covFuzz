@@ -95,6 +95,8 @@ function getCoverageData(workDir){
 
 	}
 	for(var x=0; x<covFiles.length; x++){
+		if(covFiles[x].indexOf('caller-callee.') != -1)
+			continue;
 		if(this.fileNameRegExp.test(covFiles[x])){
 			console.dlog('Regular sancov. '+covFiles[x]);
 			var module=covFiles[x].split('.')[0];
@@ -106,7 +108,7 @@ function getCoverageData(workDir){
 
 			}else{
 				coverageData[module]=fs.readFileSync(workDir+'/'+covFiles[x]);
-				console.dlog('Size: '+coverageData[module].length)
+				console.dlog('Size: '+coverageData[module].length);
 			}
 		}else if(this.readPacked && covFiles[x].indexOf('.sancov.packed')!=-1){
 			console.dlog('Packed sancov!');
