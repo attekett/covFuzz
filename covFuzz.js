@@ -161,7 +161,7 @@ function updateCrashes(fingerPrint){
        stats.crashes[fingerPrint].count++;
 }
 
-instrumentation.setMaxBlockCount(50);
+instrumentation.setMaxBlockCount(config.initialMaxBlockCount);
 
 var start_time=new Date().getTime();
 

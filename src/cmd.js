@@ -34,6 +34,7 @@ var config={
 	resultDirectory:undefined, //Directory where crashes are outputted
 	reverse:false, //Normal mode sorts files from smallest to largest, setting this reverses the order.
 	//sleepTimeout:100,
+	initialMaxBlockCount:10,
 	testCaseGen:path.resolve(__dirname,'./testcasegen.js'),
     testCaseGenerators:[
 	    __dirname+'/../testcasegenerators/surku.js',
@@ -44,7 +45,7 @@ var config={
 };
 
 if(process.argv.length<=2){
-	console.log('covFuzz v0.1 - Author: Atte Kettunen (@attekett)');
+	console.log('covFuzz v0.2 - Author: Atte Kettunen (@attekett)');
 	console.log('Usage: node covFuzz.js -c <path-to-conf-file> [Flags]');
 	console.log('For more info about configuration files, check examples.');
 	console.log('Flags:');
@@ -106,6 +107,20 @@ for(var key in cmd_config){
 	if(cmd_config[key])
 		config[key]=cmd_config[key];
 }
+
+if(!config.inputDirectory){
+	console.log('No input directory specified.');
+	process.exit(0);
+}
+else if(!fs.existsSync(config.inputDirectory)){
+	console.log('Input directory does not exist.');
+	process.exit(0);
+}
+else if(!fs.statSync(config.inputDirectory).isDirectory()){
+	console.log('Input directory is not a directory.');
+	process.exit(0);
+}
+
 
 if(config.outputDirectory){
 	if(!fs.existsSync(config.outputDirectory))

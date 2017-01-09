@@ -164,13 +164,12 @@ function generateNewTestCase(){
 function saveNewSample(data){
     //newBlocks:newBlocks,testCaseBlocks:testCaseBlocks
 
-    fs.readFile(data.file,(err,data)=>{
+    fs.readFile(data.file,(err,fileContent)=>{
       if(err){
         console.log('Warning: Failed to save sample '+data.file);
         console.log('This issue can occur when multiple samples have same content.');    
       }
       else{
-        var fileContent=data;
         var original=path.resolve(data.file);
         var fileName=crypto.createHash('sha1').update(fileContent).digest('hex');
         var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+path.extname(data.file));
