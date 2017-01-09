@@ -164,27 +164,35 @@ function generateNewTestCase(){
 function saveNewSample(data){
     //newBlocks:newBlocks,testCaseBlocks:testCaseBlocks
 
-    var fileContent=fs.readFileSync(data.file);
-    var original=path.resolve(data.file);
-    var fileName=crypto.createHash('sha1').update(fileContent).digest('hex');
-    var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+path.extname(data.file));
-    if(!fs.existsSync(fullName))
-       fs.writeFileSync(fullName,fileContent);
-    var fileStats={
-         file:fullName,
-         newBlocks:data.newBlocks,
-         testCaseBlocks:data.testCaseBlocks,
-         exec_time:data.exec_time,
-         size:fileContent.length
-       };
-    samples.allSamples.push(fileStats);
-    var cloneStat=Object.assign({},fileStats);
-       cloneStat.weight=200;
-    samples.topSamples.push(cloneStat);
-    console.log('['+(new Date().getTime())+']File: '+fullName+' newblocks:'+data.newBlocks+' corpussize: '+samples.allSamples.length+' totalblocks: '+data.totalBlocks);
-    if( original != fullName){
-       removeTestCase(data);
-    }
+    fs.readFile(data.file,(err,data)=>{
+      if(err){
+        console.log('Warning: Failed to save sample '+data.file);
+        console.log('This issue can occur when multiple samples have same content.');    
+      }
+      else{
+        var fileContent=data;
+        var original=path.resolve(data.file);
+        var fileName=crypto.createHash('sha1').update(fileContent).digest('hex');
+        var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+path.extname(data.file));
+        if(!fs.existsSync(fullName))
+           fs.writeFileSync(fullName,fileContent);
+        var fileStats={
+             file:fullName,
+             newBlocks:data.newBlocks,
+             testCaseBlocks:data.testCaseBlocks,
+             exec_time:data.exec_time,
+             size:fileContent.length
+           };
+        samples.allSamples.push(fileStats);
+        var cloneStat=Object.assign({},fileStats);
+           cloneStat.weight=200;
+        samples.topSamples.push(cloneStat);
+        console.log('['+(new Date().getTime())+']File: '+fullName+' newblocks:'+data.newBlocks+' corpussize: '+samples.allSamples.length+' totalblocks: '+data.totalBlocks);
+        if( original != fullName){
+           removeTestCase(data);
+        }
+      }
+    });
 }
 
 /*
