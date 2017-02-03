@@ -2,6 +2,7 @@
 
 var net=require('net');
 var spawn=require('child_process').spawn;
+var path=require('path');
 var fs=require('fs');
 
 var radamsa;
@@ -45,7 +46,6 @@ function radamsaGenerator(conf){
     };
     this.getTestCase=function(callback){
         var tempDirectory=this.config.tempDirectory;
-        var extension=this.config.extension;
         var client = net.connect((this.config.port+1), 'localhost');
         var data;
         var timeout;
@@ -66,7 +66,7 @@ function radamsaGenerator(conf){
             if(data){
                 clearTimeout(timeout);
                 var prefix=new Date().getTime()+Math.random().toString().split('.')[1];
-                var fileName=tempDirectory+'/samples/'+prefix+'.'+extension;
+                var fileName=path.join(tempDirectory,'samples',prefix);
                 fs.writeFile(fileName,data,function(){
                     callback({type:"file",data:fileName});
                 });

@@ -279,6 +279,7 @@ function onTargetExit(stdout,stderr,file,workDir,killed,exit_code,exec_time){
        consoleLogstatus('Status');
        instrumentation.setMaxBlockCount(1);
        if(stats.trimCount===0){
+            instrumentation.setMaxBlockCount(config.maxBlockCount);
             stats.trimCount++;
             trim=true;
         }

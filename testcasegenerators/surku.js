@@ -17,7 +17,7 @@ function init(config){
 function generateTestCase(getSample,callback){
         var prefix=new Date().getTime()+Math.random().toString().split('.')[1];
         var sampleFile=getSample(1)[0];
-        if(sampleFile){
+        if(sampleFile && fs.existsSync(sampleFile)){
             var fileName=surkuConfig.tempDirectory+'/samples/'+prefix;
             var fileContent=fs.readFileSync(sampleFile);
             var chunkSize=Math.ceil(fileContent.length/100);

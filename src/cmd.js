@@ -27,6 +27,7 @@ var config={
 	trimFrequency: 10000,
 	extension:'radamsa',
 	radamsaPath:'radamsa',
+	deleteFromOutput: true, //Do we remove "useless" files from output directory when trimming.
 	maxBlockCount:1, //How many files per block are collected from the original sample collection. Doesn't effect during fuzzing phase.
 	maxTempTestCases:20, //How many fuzzed test cases we are trying to keep on queue at all times.
 	maxTestCaseCount:undefined, //Use this if you want to run specific number of test cases. Note that initial samples count to this limit.
@@ -120,7 +121,7 @@ else if(!fs.statSync(config.inputDirectory).isDirectory()){
 	console.log('Input directory is not a directory.');
 	process.exit(0);
 }
-
+config.inputDirectory=path.resolve(config.inputDirectory);
 
 if(config.outputDirectory){
 	if(!fs.existsSync(config.outputDirectory))

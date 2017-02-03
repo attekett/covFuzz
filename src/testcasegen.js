@@ -119,14 +119,26 @@ function trim(){
     console.log('TRIMMING');
     if(config.filterInputFolder===true){
        console.log("Enabling brutal removing.");
-       config.deleteFiles=true;
+       config.deleteFromInput=true;
     }
 
     filterSamples(samples);
 
     var allSamples=[];
-    for(var x=0; x<samples.allSamples.length; x++){
+    var x=0;
+    for(x=0; x<samples.allSamples.length; x++){
        allSamples.push(samples.allSamples[x].file);
+    }
+
+    var allFiles=fs.readdirSync(config.outputDirectory);
+    if(allFiles.length>allSamples.length){
+      for(x=0; x<allFiles.length; x++){
+        var fullName=path.resolve(config.outputDirectory,allFiles[x]);
+        if(allSamples.indexOf(fullName)==-1){
+       //   console.log('New sample: '+fullName);
+          allSamples.push(fullName);
+        }
+      }
     }
 
     samples={
@@ -174,17 +186,17 @@ function saveNewSample(data){
         var fileName=crypto.createHash('sha1').update(fileContent).digest('hex');
         var fullName=path.resolve(config.outputDirectory,path.basename(fileName)+path.extname(data.file));
         if(!fs.existsSync(fullName))
-           fs.writeFileSync(fullName,fileContent);
-        var fileStats={
-             file:fullName,
-             newBlocks:data.newBlocks,
-             testCaseBlocks:data.testCaseBlocks,
-             exec_time:data.exec_time,
-             size:fileContent.length
-           };
+          fs.writeFileSync(fullName,fileContent);
+          var fileStats={
+            file:fullName,
+            newBlocks:data.newBlocks,
+            testCaseBlocks:data.testCaseBlocks,
+            exec_time:data.exec_time,
+            size:fileContent.length
+          };
         samples.allSamples.push(fileStats);
         var cloneStat=Object.assign({},fileStats);
-           cloneStat.weight=200;
+            cloneStat.weight=200;
         samples.topSamples.push(cloneStat);
         console.log('['+(new Date().getTime())+']File: '+fullName+' newblocks:'+data.newBlocks+' corpussize: '+samples.allSamples.length+' totalblocks: '+data.totalBlocks);
         if( original != fullName){
@@ -202,20 +214,25 @@ function removeTestCase(data){
     var file=path.resolve(data.file);
     var inInputDir=(path.resolve(file).indexOf(config.inputDirectory)!=-1);
     var inOutputDir=(path.resolve(file).indexOf(config.outputDirectory)!=-1);
-    if((!inInputDir || config.deleteFiles) && fs.existsSync(file)){
-       if(inInputDir||inOutputDir){
-         for(var x=0; x<samples.allSamples.length; x++){
-          if(samples.allSamples[x].file==file){
-              samples.allSamples.splice(x,1);
-          }
-         }
-         for(var y=0; y<samples.topSamples.length; y++){
-          if(samples.topSamples[y].file==file){
-              samples.topSamples.splice(y,1);
-          }
-         }
+    
+    if(inInputDir||inOutputDir){
+       for(var x=0; x<samples.allSamples.length; x++){
+        if(samples.allSamples[x].file==file){
+            samples.allSamples.splice(x,1);
+        }
        }
-       fs.unlink(file);
+       for(var y=0; y<samples.topSamples.length; y++){
+        if(samples.topSamples[y].file==file){
+            samples.topSamples.splice(y,1);
+        }
+       }
+     }
+
+    if(!inInputDir && !inOutputDir){
+      fs.unlink(file,function(e){if(e){console.log('Unlink err.'+e);}});
+    }
+    else if((inInputDir && config.deleteFromInput) || (inOutputDir && config.deleteFromOutput)){
+       fs.unlink(file,function(e){if(e){console.log('Unlink err.'+e);}});
     }
 }
 
@@ -270,7 +287,7 @@ function newTestCase(file){
     }
     else if(file.type=="data"){
         var prefix=""+new Date().getTime()+Math.random().split('.')[1];
-        var fileName=config.tempDirectory+'/samples/'+prefix+fileCount+path;
+        var fileName=path.join(config.tempDirectory,'samples',prefix+fileCount+path);
         fs.writeFile(fileName,file.data,function(){
          sendNewTestCase(fileName);
         });
@@ -290,7 +307,3 @@ function sendNewTestCase(fileName){
     });
 }
 
-process.on('disconnect',function(e){
-    console.log("testcasegen.js error:"+e);
-    process.exit();
-});
